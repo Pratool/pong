@@ -5,4 +5,25 @@ project("Pong")
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_FLAGS "-Wswitch-enum -Werror")
 
+find_package(SFML REQUIRED COMPONENTS system window graphics)
+
+add_executable(main
+  main.cc
+)
+
+target_link_libraries(main
+  config_tools
+  sfml-graphics
+)
+
+install(
+  TARGETS main
+  DESTINATION bin
+)
+
+install(
+  DIRECTORY resources/
+  DESTINATION resources
+)
+
 add_subdirectory(config_tools)
