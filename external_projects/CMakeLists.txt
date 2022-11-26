@@ -40,3 +40,23 @@ externalproject_add(sfml
     ${CMAKE_USER_ARGS}
 )
 add_dependencies(sfml flac openal-soft)
+
+externalproject_add(boost
+  DOWNLOAD_NO_PROGRESS ON
+  PREFIX ${CMAKE_CURRENT_BINARY_DIR}/boost
+  URL "https://boostorg.jfrog.io/artifactory/main/release/1.80.0/source/boost_1_80_0.tar.bz2"
+  URL_HASH SHA256=1e19565d82e43bc59209a168f5ac899d3ba471d55c7610c677d4ccf2c9c500c0
+  BUILD_IN_SOURCE ON
+  CONFIGURE_COMMAND
+    LD_LIBRARY_PATH=${CMAKE_INSTALL_PREFIX}/lib:$ENV{LD_LIBRARY_PATH}
+    PATH=${CMAKE_INSTALL_PREFIX}/bin:$ENV{PATH}
+    ./bootstrap.sh
+    --prefix=${CMAKE_INSTALL_PREFIX}
+    --with-python-root=${CMAKE_INSTALL_PREFIX}
+    --with-python=python3
+  BUILD_COMMAND ./b2 install
+    --prefix=${CMAKE_INSTALL_PREFIX}
+    variant=release
+    runtime-link=shared
+  INSTALL_COMMAND ""
+)
