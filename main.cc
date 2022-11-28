@@ -2,8 +2,10 @@
 
 #include <SFML/Graphics.hpp>
 
+#include <array>
 #include <chrono>
 #include <cstdint>
+#include <cmath>
 
 namespace
 {
@@ -95,9 +97,18 @@ struct KinematicState
   Timepoint last_update;
   float left_paddle_y{0.0f};
   float right_paddle_y{0.0f};
+  float ball_x{300.0f};
+  float ball_y{200.0f};
+  std::array<float, 2U> ball_dir_unit_vector{0.4472135954999579, -0.8944271909999159};
 
   static void update_paddle(
     const std::chrono::nanoseconds duration_since_last_update, const PaddleDirection direction, float& paddle_y);
+
+  static void update_ball(
+    const std::chrono::nanoseconds duration_since_last_update,
+    std::array<float, 2U>& direction,
+    float& x_position,
+    float& y_position);
 };
 
 void KinematicState::update_paddle(
@@ -115,6 +126,42 @@ void KinematicState::update_paddle(
     case PaddleDirection::down:
       paddle_y = std::min(paddle_y + adjustment, static_cast<float>(::window_height_px) - paddle_height_px());
       break;
+  }
+}
+
+void KinematicState::update_ball(
+  const std::chrono::nanoseconds duration_since_last_update,
+  std::array<float, 2U>& direction,
+  float& x_position,
+  float& y_position)
+{
+  constexpr float speed =
+    std::sqrt((static_cast<double>(::window_height_px)*::window_height_px) + (::window_width_px*::window_width_px))
+    / std::chrono::nanoseconds(std::chrono::seconds(1)).count();
+  x_position = x_position + (direction[0] * speed * duration_since_last_update.count());
+
+  if (x_position <= 0.0f)
+  {
+    direction[0] *= -1.0f;
+    x_position = 0.1f;
+  }
+  else if (x_position >= ::window_width_px)
+  {
+    direction[0] *= -1.0f;
+    x_position = ::window_width_px - 0.1;
+  }
+
+  y_position = y_position + (direction[1] * speed * duration_since_last_update.count());
+
+  if (y_position <= 0.0f)
+  {
+    direction[1] *= -1.0f;
+    y_position = 0.1f;
+  }
+  else if (y_position >= ::window_width_px)
+  {
+    direction[1] *= -1.0f;
+    y_position = ::window_width_px - 0.1;
   }
 }
 
@@ -197,6 +244,8 @@ int main()
         KinematicState::update_paddle(update_duration, PaddleDirection::down, kstate.right_paddle_y);
         right_paddle.setPosition(right_paddle_position(), kstate.right_paddle_y);
       }
+      KinematicState::update_ball(update_duration, kstate.ball_dir_unit_vector, kstate.ball_x, kstate.ball_y);
+      ball.setPosition(sf::Vector2f(kstate.ball_x, kstate.ball_y));
     }
 
     window.clear();
