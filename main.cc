@@ -1,4 +1,5 @@
 #include "config_tools/config_tools.hh"
+#include "kinematics/paddle.hh"
 
 #include <SFML/Graphics.hpp>
 
@@ -12,8 +13,8 @@ namespace
 
 constexpr double nominal_window_width_px = 680.0;
 constexpr double nominal_window_height_px = 480.0;
-constexpr uint32_t window_width_px = 680U;
-constexpr uint32_t window_height_px = 480U;
+constexpr uint32_t window_width_px = 680U*2;
+constexpr uint32_t window_height_px = 480U*2;
 
 constexpr uint32_t score_font_size_px()
 {
@@ -95,14 +96,9 @@ struct KinematicState
   using Timepoint = std::chrono::time_point<Clock>;
 
   Timepoint last_update;
-  float left_paddle_y{0.0f};
-  float right_paddle_y{0.0f};
   float ball_x{300.0f};
   float ball_y{200.0f};
   std::array<float, 2U> ball_dir_unit_vector{0.4472135954999579, -0.8944271909999159};
-
-  static void update_paddle(
-    const std::chrono::nanoseconds duration_since_last_update, const PaddleDirection direction, float& paddle_y);
 
   static void update_ball(
     const std::chrono::nanoseconds duration_since_last_update,
@@ -110,24 +106,6 @@ struct KinematicState
     float& x_position,
     float& y_position);
 };
-
-void KinematicState::update_paddle(
-  const std::chrono::nanoseconds duration_since_last_update, const PaddleDirection direction, float& paddle_y)
-{
-  constexpr float pixels_per_nanosecond =
-    static_cast<double>(::window_height_px) / std::chrono::nanoseconds(std::chrono::seconds(1)).count();
-
-  const float adjustment{duration_since_last_update.count() * pixels_per_nanosecond};
-  switch (direction)
-  {
-    case PaddleDirection::up:
-      paddle_y = std::max(paddle_y - adjustment, 0.0f);
-      break;
-    case PaddleDirection::down:
-      paddle_y = std::min(paddle_y + adjustment, static_cast<float>(::window_height_px) - paddle_height_px());
-      break;
-  }
-}
 
 void KinematicState::update_ball(
   const std::chrono::nanoseconds duration_since_last_update,
@@ -203,11 +181,13 @@ int main()
   ball.setFillColor(sf::Color::White);
   ball.setPointCount(ball_point_count());
 
+  pong::Paddle lpaddle(left_paddle_position(), ::window_height_px, paddle_height_px());
   sf::RectangleShape left_paddle(sf::Vector2f(paddle_width_px(), paddle_height_px()));
-  left_paddle.setPosition(sf::Vector2f(left_paddle_position(), kstate.left_paddle_y));
+  left_paddle.setPosition(lpaddle.update(0, pong::PaddleDirection::up));
 
+  pong::Paddle rpaddle(right_paddle_position(), ::window_height_px, paddle_height_px());
   sf::RectangleShape right_paddle(sf::Vector2f(paddle_width_px(), paddle_height_px()));
-  right_paddle.setPosition(sf::Vector2f(right_paddle_position(), kstate.right_paddle_y));
+  right_paddle.setPosition(rpaddle.update(0, pong::PaddleDirection::up));
 
   while (window.isOpen())
   {
@@ -225,24 +205,20 @@ int main()
 
       if (sf::Keyboard::isKeyPressed(sf::Keyboard::W))
       {
-        KinematicState::update_paddle(update_duration, PaddleDirection::up, kstate.left_paddle_y);
-        left_paddle.setPosition(left_paddle_position(), kstate.left_paddle_y);
+        left_paddle.setPosition(lpaddle.update(update_duration.count(), pong::PaddleDirection::up));
       }
       if (sf::Keyboard::isKeyPressed(sf::Keyboard::S))
       {
-        KinematicState::update_paddle(update_duration, PaddleDirection::down, kstate.left_paddle_y);
-        left_paddle.setPosition(left_paddle_position(), kstate.left_paddle_y);
+        left_paddle.setPosition(lpaddle.update(update_duration.count(), pong::PaddleDirection::down));
       }
 
       if (sf::Keyboard::isKeyPressed(sf::Keyboard::Up))
       {
-        KinematicState::update_paddle(update_duration, PaddleDirection::up, kstate.right_paddle_y);
-        right_paddle.setPosition(right_paddle_position(), kstate.right_paddle_y);
+        right_paddle.setPosition(rpaddle.update(update_duration.count(), pong::PaddleDirection::up));
       }
       if (sf::Keyboard::isKeyPressed(sf::Keyboard::Down))
       {
-        KinematicState::update_paddle(update_duration, PaddleDirection::down, kstate.right_paddle_y);
-        right_paddle.setPosition(right_paddle_position(), kstate.right_paddle_y);
+        right_paddle.setPosition(rpaddle.update(update_duration.count(), pong::PaddleDirection::down));
       }
       KinematicState::update_ball(update_duration, kstate.ball_dir_unit_vector, kstate.ball_x, kstate.ball_y);
       ball.setPosition(sf::Vector2f(kstate.ball_x, kstate.ball_y));

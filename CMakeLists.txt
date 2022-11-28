@@ -13,6 +13,7 @@ add_executable(main
 
 target_link_libraries(main
   config_tools
+  kinematics
   sfml-graphics
 )
 
@@ -27,3 +28,4 @@ install(
 )
 
 add_subdirectory(config_tools)
+add_subdirectory(kinematics)
