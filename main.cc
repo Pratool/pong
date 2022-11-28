@@ -2,6 +2,7 @@
 
 #include <SFML/Graphics.hpp>
 
+#include <chrono>
 #include <cstdint>
 
 namespace
@@ -78,11 +79,51 @@ constexpr uint32_t right_paddle_position()
   return window_width_px - paddle_width_px() - 1;
 }
 
-
 }  // end anonymous namespace
+
+enum class PaddleDirection : uint8_t
+{
+  up = 0,
+  down,
+};
+
+struct KinematicState
+{
+  using Clock = std::chrono::high_resolution_clock;
+  using Timepoint = std::chrono::time_point<Clock>;
+
+  Timepoint last_update;
+  float left_paddle_y{0.0f};
+  float right_paddle_y{0.0f};
+
+  static void update_paddle(
+    const std::chrono::nanoseconds duration_since_last_update, const PaddleDirection direction, float& paddle_y);
+};
+
+void KinematicState::update_paddle(
+  const std::chrono::nanoseconds duration_since_last_update, const PaddleDirection direction, float& paddle_y)
+{
+  constexpr float pixels_per_nanosecond =
+    static_cast<double>(::window_height_px) / std::chrono::nanoseconds(std::chrono::seconds(1)).count();
+
+  const float adjustment{duration_since_last_update.count() * pixels_per_nanosecond};
+  switch (direction)
+  {
+    case PaddleDirection::up:
+      paddle_y = std::max(paddle_y - adjustment, 0.0f);
+      break;
+    case PaddleDirection::down:
+      paddle_y = std::min(paddle_y + adjustment, static_cast<float>(::window_height_px) - paddle_height_px());
+      break;
+  }
+}
 
 int main()
 {
+  KinematicState::Clock clock;
+  KinematicState kstate;
+  kstate.last_update = clock.now();
+
   sf::Font sans_serif;
   if (!sans_serif.loadFromFile(pong::font_path(pong::FontType::sans_serif)))
   {
@@ -116,10 +157,10 @@ int main()
   ball.setPointCount(ball_point_count());
 
   sf::RectangleShape left_paddle(sf::Vector2f(paddle_width_px(), paddle_height_px()));
-  left_paddle.setPosition(sf::Vector2f(left_paddle_position(), 0));
+  left_paddle.setPosition(sf::Vector2f(left_paddle_position(), kstate.left_paddle_y));
 
   sf::RectangleShape right_paddle(sf::Vector2f(paddle_width_px(), paddle_height_px()));
-  right_paddle.setPosition(sf::Vector2f(right_paddle_position(), 0));
+  right_paddle.setPosition(sf::Vector2f(right_paddle_position(), kstate.right_paddle_y));
 
   while (window.isOpen())
   {
@@ -128,6 +169,34 @@ int main()
     {
       if (event.type == sf::Event::Closed)
         window.close();
+    }
+
+    if (auto update_time = clock.now(); update_time - kstate.last_update > std::chrono::milliseconds(15))
+    {
+      const std::chrono::nanoseconds update_duration = update_time - kstate.last_update;
+      kstate.last_update = std::move(update_time);
+
+      if (sf::Keyboard::isKeyPressed(sf::Keyboard::W))
+      {
+        KinematicState::update_paddle(update_duration, PaddleDirection::up, kstate.left_paddle_y);
+        left_paddle.setPosition(left_paddle_position(), kstate.left_paddle_y);
+      }
+      if (sf::Keyboard::isKeyPressed(sf::Keyboard::S))
+      {
+        KinematicState::update_paddle(update_duration, PaddleDirection::down, kstate.left_paddle_y);
+        left_paddle.setPosition(left_paddle_position(), kstate.left_paddle_y);
+      }
+
+      if (sf::Keyboard::isKeyPressed(sf::Keyboard::Up))
+      {
+        KinematicState::update_paddle(update_duration, PaddleDirection::up, kstate.right_paddle_y);
+        right_paddle.setPosition(right_paddle_position(), kstate.right_paddle_y);
+      }
+      if (sf::Keyboard::isKeyPressed(sf::Keyboard::Down))
+      {
+        KinematicState::update_paddle(update_duration, PaddleDirection::down, kstate.right_paddle_y);
+        right_paddle.setPosition(right_paddle_position(), kstate.right_paddle_y);
+      }
     }
 
     window.clear();
