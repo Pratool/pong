@@ -13,6 +13,21 @@ Paddle::Paddle(const float x_position_px, const uint32_t frame_height_px, const 
 {
 }
 
+[[nodiscard]] const float& Paddle::x_position_px() const noexcept
+{
+  return x_position_px_;
+}
+
+[[nodiscard]] const float& Paddle::y_position_px() const noexcept
+{
+  return y_position_px_;
+}
+
+[[nodiscard]] const float& Paddle::height_px() const noexcept
+{
+  return height_px_;
+}
+
 [[nodiscard]] sf::Vector2f Paddle::update(const uint64_t elapsed_ns, const PaddleDirection direction) noexcept
 {
   const float adjustment{elapsed_ns * speed_px_per_sec_};

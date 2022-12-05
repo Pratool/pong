@@ -25,6 +25,10 @@ public:
 
   Paddle(const float x_position_px, const uint32_t frame_height_px, const uint32_t height_px);
 
+  [[nodiscard]] const float& x_position_px() const noexcept;
+  [[nodiscard]] const float& y_position_px() const noexcept;
+  [[nodiscard]] const float& height_px() const noexcept;
+
   [[nodiscard]] sf::Vector2f update(const uint64_t elapsed_ns, const PaddleDirection direction) noexcept;
 
 private:

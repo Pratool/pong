@@ -1,6 +1,7 @@
 find_package(SFML REQUIRED COMPONENTS system)
 
 add_library(kinematics
+  src/ball.cc
   src/paddle.cc
 )
 

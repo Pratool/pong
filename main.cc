@@ -1,5 +1,6 @@
 #include "config_tools/config_tools.hh"
 #include "kinematics/paddle.hh"
+#include "kinematics/ball.hh"
 
 #include <SFML/Graphics.hpp>
 
@@ -84,64 +85,13 @@ constexpr uint32_t right_paddle_position()
 
 }  // end anonymous namespace
 
-enum class PaddleDirection : uint8_t
-{
-  up = 0,
-  down,
-};
-
 struct KinematicState
 {
   using Clock = std::chrono::high_resolution_clock;
   using Timepoint = std::chrono::time_point<Clock>;
 
   Timepoint last_update;
-  float ball_x{300.0f};
-  float ball_y{200.0f};
-  std::array<float, 2U> ball_dir_unit_vector{0.4472135954999579, -0.8944271909999159};
-
-  static void update_ball(
-    const std::chrono::nanoseconds duration_since_last_update,
-    std::array<float, 2U>& direction,
-    float& x_position,
-    float& y_position);
 };
-
-void KinematicState::update_ball(
-  const std::chrono::nanoseconds duration_since_last_update,
-  std::array<float, 2U>& direction,
-  float& x_position,
-  float& y_position)
-{
-  constexpr float speed =
-    std::sqrt((static_cast<double>(::window_height_px)*::window_height_px) + (::window_width_px*::window_width_px))
-    / std::chrono::nanoseconds(std::chrono::seconds(1)).count();
-  x_position = x_position + (direction[0] * speed * duration_since_last_update.count());
-
-  if (x_position <= 0.0f)
-  {
-    direction[0] *= -1.0f;
-    x_position = 0.1f;
-  }
-  else if (x_position >= ::window_width_px)
-  {
-    direction[0] *= -1.0f;
-    x_position = ::window_width_px - 0.1;
-  }
-
-  y_position = y_position + (direction[1] * speed * duration_since_last_update.count());
-
-  if (y_position <= 0.0f)
-  {
-    direction[1] *= -1.0f;
-    y_position = 0.1f;
-  }
-  else if (y_position >= ::window_width_px)
-  {
-    direction[1] *= -1.0f;
-    y_position = ::window_width_px - 0.1;
-  }
-}
 
 int main()
 {
@@ -177,9 +127,18 @@ int main()
   right_score.setString("0");
   right_score.setPosition(right_score_position(), score_vertical_position());
 
-  sf::CircleShape ball(ball_radius_px());
-  ball.setFillColor(sf::Color::White);
-  ball.setPointCount(ball_point_count());
+  pong::Ball ball(
+    ball_radius_px(),
+    0.7 * std::sqrt((static_cast<double>(::window_height_px)*::window_height_px) + (::window_width_px*::window_width_px))
+              / std::chrono::nanoseconds(std::chrono::seconds(1)).count(),
+    sf::Vector2f(0.4472135954999579, -0.8944271909999159),
+    sf::Vector2f(300, 300)
+  );
+    
+  sf::CircleShape ball_shape(ball_radius_px());
+  ball_shape.setFillColor(sf::Color::White);
+  ball_shape.setPointCount(ball_point_count());
+  ball_shape.setPosition(ball.update(1));
 
   pong::Paddle lpaddle(left_paddle_position(), ::window_height_px, paddle_height_px());
   sf::RectangleShape left_paddle(sf::Vector2f(paddle_width_px(), paddle_height_px()));
@@ -200,32 +159,68 @@ int main()
 
     if (auto update_time = clock.now(); update_time - kstate.last_update > std::chrono::milliseconds(15))
     {
-      const std::chrono::nanoseconds update_duration = update_time - kstate.last_update;
+      const auto update_duration = (update_time - kstate.last_update).count();
       kstate.last_update = std::move(update_time);
 
       if (sf::Keyboard::isKeyPressed(sf::Keyboard::W))
       {
-        left_paddle.setPosition(lpaddle.update(update_duration.count(), pong::PaddleDirection::up));
+        left_paddle.setPosition(lpaddle.update(update_duration, pong::PaddleDirection::up));
       }
       if (sf::Keyboard::isKeyPressed(sf::Keyboard::S))
       {
-        left_paddle.setPosition(lpaddle.update(update_duration.count(), pong::PaddleDirection::down));
+        left_paddle.setPosition(lpaddle.update(update_duration, pong::PaddleDirection::down));
       }
 
       if (sf::Keyboard::isKeyPressed(sf::Keyboard::Up))
       {
-        right_paddle.setPosition(rpaddle.update(update_duration.count(), pong::PaddleDirection::up));
+        right_paddle.setPosition(rpaddle.update(update_duration, pong::PaddleDirection::up));
       }
       if (sf::Keyboard::isKeyPressed(sf::Keyboard::Down))
       {
-        right_paddle.setPosition(rpaddle.update(update_duration.count(), pong::PaddleDirection::down));
+        right_paddle.setPosition(rpaddle.update(update_duration, pong::PaddleDirection::down));
       }
-      KinematicState::update_ball(update_duration, kstate.ball_dir_unit_vector, kstate.ball_x, kstate.ball_y);
-      ball.setPosition(sf::Vector2f(kstate.ball_x, kstate.ball_y));
+
+      auto ball_position = ball.update(update_duration);
+      const bool ball_going_right = ball.direction().x > 0;
+      const bool ball_going_down = ball.direction().y > 0;
+      if (ball_position.x <= lpaddle.x_position_px() && !ball_going_right)
+      {
+        if (ball_position.y <= lpaddle.y_position_px() + lpaddle.height_px()
+            && ball_position.y + 2*ball.radius_px() >= lpaddle.y_position_px())
+        {
+          ball_position = ball.bounce_from(pong::Side::horizontal, update_duration);
+        }
+        else
+        {
+          right_score.setString("Game over");
+          window.close();
+        }
+
+      }
+      else if (ball_position.x + 2*ball.radius_px() >= rpaddle.x_position_px() && ball_going_right)
+      {
+        if (ball_position.y <= rpaddle.y_position_px() + rpaddle.height_px()
+            && ball_position.y + 2*ball.radius_px() >= rpaddle.y_position_px())
+        {
+          ball_position = ball.bounce_from(pong::Side::horizontal, update_duration);
+        }
+        else
+        {
+          right_score.setString("Game over");
+          window.close();
+        }
+      }
+      else if ((ball_position.y <= 0.0f && !ball_going_down)
+               || (ball_position.y + 2*ball.radius_px() >= ::window_height_px && ball_going_down))
+      {
+        ball_position = ball.bounce_from(pong::Side::vertical, update_duration);
+      }
+
+      ball_shape.setPosition(std::move(ball_position));
     }
 
     window.clear();
-    window.draw(ball);
+    window.draw(ball_shape);
     window.draw(left_score);
     window.draw(right_score);
     window.draw(side_divider);
