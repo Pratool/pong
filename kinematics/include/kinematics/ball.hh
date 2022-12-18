@@ -20,8 +20,8 @@ public:
   ~Ball() = default;
   Ball(const Ball&) = default;
   Ball(Ball&&) = default;
-  Ball& operator=(const Ball&) = default;
-  Ball& operator=(Ball&&) = default;
+  Ball& operator=(const Ball&) = delete;
+  Ball& operator=(Ball&&) = delete;
 
   Ball(const float radius_px, const float speed_px_per_sec, sf::Vector2f&& unit_direction, sf::Vector2f&& position);
 

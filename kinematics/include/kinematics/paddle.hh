@@ -20,8 +20,8 @@ public:
   ~Paddle() = default;
   Paddle(const Paddle&) = default;
   Paddle(Paddle&&) = default;
-  Paddle& operator=(const Paddle&) = default;
-  Paddle& operator=(Paddle&&) = default;
+  Paddle& operator=(const Paddle&) = delete;
+  Paddle& operator=(Paddle&&) = delete;
 
   Paddle(const float x_position_px, const uint32_t frame_height_px, const uint32_t height_px);
 
