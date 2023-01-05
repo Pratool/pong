@@ -18,12 +18,20 @@ constexpr uint32_t window_height_px = 480U*2;
 
 }  // end anonymous namespace
 
+enum class GameState : uint8_t
+{
+  start = 0,
+  end,
+  play
+};
+
 struct KinematicState
 {
   using Clock = std::chrono::high_resolution_clock;
   using Timepoint = std::chrono::time_point<Clock>;
 
   Timepoint last_update;
+  GameState state{GameState::start};
 };
 
 int main()
@@ -82,6 +90,17 @@ int main()
   sf::RectangleShape right_paddle(sf::Vector2f(paddle_width_px(window_width_px), paddle_height_px(window_width_px)));
   right_paddle.setPosition(rpaddle.update(0, pong::PaddleDirection::up));
 
+  sf::Text start_text;
+  start_text.setFont(sans_serif);
+  start_text.setCharacterSize(score_font_size_px(window_width_px));
+  start_text.setFillColor(sf::Color::White);
+  start_text.setStyle(sf::Text::Bold);
+  start_text.setString("Hit W to begin game");
+  start_text.setPosition(right_score_position(window_width_px), score_vertical_position_px(window_width_px));
+
+  auto end_text = start_text;
+  end_text.setString("Game Over\nHit W to begin game");
+
   while (window.isOpen())
   {
     sf::Event event;
@@ -89,6 +108,32 @@ int main()
     {
       if (event.type == sf::Event::Closed)
         window.close();
+    }
+
+    if (kstate.state == GameState::start)
+    {
+      kstate.last_update = clock.now();
+      window.clear();
+      window.draw(start_text);
+      window.display();
+      if (sf::Keyboard::isKeyPressed(sf::Keyboard::W))
+      {
+        kstate.state = GameState::play;
+      }
+      continue;
+    }
+
+    if (kstate.state == GameState::end)
+    {
+      kstate.last_update = clock.now();
+      window.clear();
+      window.draw(end_text);
+      window.display();
+      if (sf::Keyboard::isKeyPressed(sf::Keyboard::W))
+      {
+        kstate.state = GameState::play;
+      }
+      continue;
     }
 
     if (auto update_time = clock.now(); update_time - kstate.last_update > std::chrono::milliseconds(15))
@@ -127,7 +172,8 @@ int main()
         else
         {
           right_score.setString("Game over");
-          window.close();
+          kstate.state = GameState::end;
+          continue;
         }
 
       }
@@ -141,7 +187,8 @@ int main()
         else
         {
           right_score.setString("Game over");
-          window.close();
+          kstate.state = GameState::end;
+          continue;
         }
       }
       else if ((ball_position.y <= 0.0f && !ball_going_down)
