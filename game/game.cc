@@ -1,3 +1,4 @@
+#include "board.hh"
 #include "config_tools/config_tools.hh"
 #include "kinematics/paddle.hh"
 #include "kinematics/ball.hh"
@@ -12,76 +13,8 @@
 namespace
 {
 
-constexpr double nominal_window_width_px = 680.0;
-constexpr double nominal_window_height_px = 480.0;
 constexpr uint32_t window_width_px = 680U*2;
 constexpr uint32_t window_height_px = 480U*2;
-
-constexpr uint32_t score_font_size_px()
-{
-  constexpr double nominal_score_font_size_px = 18.0;
-  return (nominal_score_font_size_px / nominal_window_width_px) * window_width_px;
-}
-
-constexpr uint32_t score_vertical_position()
-{
-  return score_font_size_px();
-}
-
-constexpr uint32_t left_score_position()
-{
-  return (window_width_px / 2) - (2 * score_font_size_px());
-}
-
-constexpr uint32_t right_score_position()
-{
-  return (window_width_px / 2) + (score_font_size_px() / 3) + score_font_size_px();
-}
-
-constexpr uint32_t side_divider_width_px()
-{
-  constexpr double nominal_width_px = 2.0;
-  return (nominal_width_px / nominal_window_width_px) * window_width_px;
-}
-
-constexpr uint32_t side_divider_position()
-{
-  return (window_width_px / 2) - (side_divider_width_px() / 2);
-}
-
-constexpr float ball_radius_px()
-{
-  constexpr double nominal_width_px = 10.0;
-  return (nominal_width_px / nominal_window_width_px) * window_width_px;
-}
-
-constexpr uint32_t ball_point_count()
-{
-  constexpr double nominal_count = 30.0;
-  constexpr float nominal_ball_radius_px = 15.0f;
-  return (nominal_count / nominal_ball_radius_px) * ball_radius_px();
-}
-
-constexpr uint32_t paddle_width_px()
-{
-  return ball_radius_px() / 2.0;
-}
-
-constexpr uint32_t paddle_height_px()
-{
-  constexpr double nominal_height_px = 48.0;
-  return (nominal_height_px / nominal_window_height_px) * window_height_px;
-}
-
-constexpr uint32_t left_paddle_position()
-{
-  return 1;
-}
-
-constexpr uint32_t right_paddle_position()
-{
-  return window_width_px - paddle_width_px() - 1;
-}
 
 }  // end anonymous namespace
 
@@ -95,6 +28,7 @@ struct KinematicState
 
 int main()
 {
+  using namespace pong;
   KinematicState::Clock clock;
   KinematicState kstate;
   kstate.last_update = clock.now();
@@ -108,44 +42,44 @@ int main()
   sf::RenderWindow window(sf::VideoMode(::window_width_px, ::window_height_px), "Pong");
   window.setVerticalSyncEnabled(true);
 
-  sf::RectangleShape side_divider(sf::Vector2f(side_divider_width_px(), ::window_height_px));
-  side_divider.setPosition(side_divider_position(), 0);
+  sf::RectangleShape side_divider(sf::Vector2f(side_divider_width_px(window_width_px), ::window_height_px));
+  side_divider.setPosition(side_divider_position(window_width_px), 0);
 
   sf::Text left_score;
   left_score.setFont(sans_serif);
-  left_score.setCharacterSize(score_font_size_px());
+  left_score.setCharacterSize(score_font_size_px(window_width_px));
   left_score.setFillColor(sf::Color::White);
   left_score.setStyle(sf::Text::Bold);
   left_score.setString("0");
-  left_score.setPosition(left_score_position(), score_vertical_position());
+  left_score.setPosition(left_score_position(window_width_px), score_vertical_position_px(window_width_px));
 
   sf::Text right_score;
   right_score.setFont(sans_serif);
-  right_score.setCharacterSize(score_font_size_px());
+  right_score.setCharacterSize(score_font_size_px(window_width_px));
   right_score.setFillColor(sf::Color::White);
   right_score.setStyle(sf::Text::Bold);
   right_score.setString("0");
-  right_score.setPosition(right_score_position(), score_vertical_position());
+  right_score.setPosition(right_score_position(window_width_px), score_vertical_position_px(window_width_px));
 
   pong::Ball ball(
-    ball_radius_px(),
+    ball_radius_px(window_width_px),
     0.7 * std::sqrt((static_cast<double>(::window_height_px)*::window_height_px) + (::window_width_px*::window_width_px))
               / std::chrono::nanoseconds(std::chrono::seconds(1)).count(),
     sf::Vector2f(0.4472135954999579, -0.8944271909999159),
     sf::Vector2f(300, 300)
   );
     
-  sf::CircleShape ball_shape(ball_radius_px());
+  sf::CircleShape ball_shape(ball_radius_px(window_width_px));
   ball_shape.setFillColor(sf::Color::White);
-  ball_shape.setPointCount(ball_point_count());
+  ball_shape.setPointCount(ball_point_count(window_width_px));
   ball_shape.setPosition(ball.update(1));
 
-  pong::Paddle lpaddle(left_paddle_position(), ::window_height_px, paddle_height_px());
-  sf::RectangleShape left_paddle(sf::Vector2f(paddle_width_px(), paddle_height_px()));
+  pong::Paddle lpaddle(left_paddle_position(), ::window_height_px, paddle_height_px(window_width_px));
+  sf::RectangleShape left_paddle(sf::Vector2f(paddle_width_px(window_width_px), paddle_height_px(window_width_px)));
   left_paddle.setPosition(lpaddle.update(0, pong::PaddleDirection::up));
 
-  pong::Paddle rpaddle(right_paddle_position(), ::window_height_px, paddle_height_px());
-  sf::RectangleShape right_paddle(sf::Vector2f(paddle_width_px(), paddle_height_px()));
+  pong::Paddle rpaddle(right_paddle_position(window_width_px), ::window_height_px, paddle_height_px(window_width_px));
+  sf::RectangleShape right_paddle(sf::Vector2f(paddle_width_px(window_width_px), paddle_height_px(window_width_px)));
   right_paddle.setPosition(rpaddle.update(0, pong::PaddleDirection::up));
 
   while (window.isOpen())
